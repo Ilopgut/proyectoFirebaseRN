@@ -1,62 +1,98 @@
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View,FlatList,renderItem } from 'react-native';
-import { FIREBASE_APP, FIREBASE_ANALYTICS, FIREBASE_AUTH, FIRESTORE_DB } from '../firebase/firebaseConfig'; // Asegúrate de usar la ruta correcta
-import {doc,setDoc,serverTimestamp,addDoc,query, collection, onSnapshot,getDocs, deleteDoc} from 'firebase/firestore';
+import { StyleSheet, Text, View, FlatList, TouchableOpacity, TextInput, Alert } from 'react-native';
+import { FIREBASE_AUTH, FIRESTORE_DB } from '../firebase/firebaseConfig';
+import { collection, query, where, onSnapshot, addDoc } from 'firebase/firestore';
+import { useState, useEffect } from 'react';
 
-import { useState,useEffect } from 'react';
+export default function ActividadesScreen() {
+  const userId = FIREBASE_AUTH.currentUser?.uid;
+  const [actividades, setActividades] = useState([]);
+  const [titulo, setTitulo] = useState('');
+  const [descripcion, setDescripcion] = useState('');
 
-export default function actividadesScreen() {
-    const userId = FIREBASE_AUTH.currentUser?.uid;
-    const [actividades,setActividades] = useState([]);
+  useEffect(() => {
+    if (!userId) return;
 
-    if (!userId) {
-      console.log("Usuario no autenticado");
-      return; // Si no hay usuario autenticado, no hacemos nada
+    const q = query(
+      collection(FIRESTORE_DB, 'actividades'),
+      where('userId', '==', userId)
+    );
+
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+      const actividadesData = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      setActividades(actividadesData);
+    });
+
+    return () => unsubscribe();
+  }, [userId]);
+
+  const agregarActividad = async () => {
+    if (!titulo.trim() || !descripcion.trim()) {
+      Alert.alert('Error', 'Completa todos los campos');
+      return;
     }
 
-    const nuevaActividad = {
+    try {
+      const nuevaActividad = {
         userId,
-        titulo: "Excursión",
-        descripcion: "Rocódromo el martes que viene",
+        titulo,
+        descripcion,
         fecha: new Date().toISOString(),
-    };
+      };
 
-    addDoc(collection(FIRESTORE_DB, 'actividades'), nuevaActividad);
+      await addDoc(collection(FIRESTORE_DB, 'actividades'), nuevaActividad);
 
-// Función para vaciar una colección
-async function vaciarColeccion(nombreColeccion) {
-  // Obtener la referencia a la colección
-  const coleccionRef = collection(FIRESTORE_DB, nombreColeccion);
-
-  try {
-    // Obtener todos los documentos en la colección
-    const querySnapshot = await getDocs(coleccionRef);
-
-    // Usar un for...of para iterar sobre cada documento de manera asincrónica
-    for (const documento of querySnapshot.docs) {
-      // Eliminar el documento individualmente
-      await deleteDoc(doc(FIRESTORE_DB, nombreColeccion, documento.id));
-      console.log(`Documento con ID ${documento.id} eliminado.`);
+      setTitulo('');
+      setDescripcion('');
+    } catch (error) {
+      Alert.alert('Error', 'No se pudo agregar la actividad');
     }
+  };
 
-    console.log(`La colección ${nombreColeccion} ha sido vaciada.`);
-  } catch (error) {
-    console.error("Error al vaciar la colección:", error);
-  }
-}
-
-// Llamar a la función para vaciar una colección (por ejemplo, "actividades")
-//vaciarColeccion("actividades");
-
+  const renderItem = ({ item }) => (
+    <View style={styles.itemContainer}>
+      <Text style={styles.itemTitle}>{item.titulo}</Text>
+      <Text>{item.descripcion}</Text>
+      <Text style={styles.itemDate}>
+        {new Date(item.fecha).toLocaleDateString()}
+      </Text>
+    </View>
+  );
 
   return (
     <View style={styles.container}>
-        <FlatList
-          data={actividades}
-          renderItem={renderItem}
-          keyExtractor={item => item.id}
-          ListEmptyComponent={<Text>No hay actividades disponibles.</Text>}
+      <FlatList
+        data={actividades}
+        renderItem={renderItem}
+        keyExtractor={item => item.id}
+        ListEmptyComponent={<Text>No hay actividades</Text>}
+      />
+
+      <View style={styles.formContainer}>
+        <TextInput
+          style={styles.input}
+          placeholder="Título"
+          value={titulo}
+          onChangeText={setTitulo}
         />
+        <TextInput
+          style={styles.input}
+          placeholder="Descripción"
+          value={descripcion}
+          onChangeText={setDescripcion}
+          multiline
+        />
+        <TouchableOpacity
+          style={styles.addButton}
+          onPress={agregarActividad}
+        >
+          <Text style={styles.addButtonText}>Agregar</Text>
+        </TouchableOpacity>
+      </View>
+
       <StatusBar style="auto" />
     </View>
   );
@@ -65,8 +101,39 @@ async function vaciarColeccion(nombreColeccion) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    padding: 10,
+  },
+  itemContainer: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#ccc',
+    paddingVertical: 10,
+  },
+  itemTitle: {
+    fontWeight: 'bold',
+    marginBottom: 5,
+  },
+  itemDate: {
+    color: '#666',
+    fontSize: 12,
+    marginTop: 5,
+  },
+  formContainer: {
+    borderTopWidth: 1,
+    borderTopColor: '#ccc',
+    paddingTop: 10,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#ccc',
+    marginBottom: 10,
+    padding: 8,
+  },
+  addButton: {
+    backgroundColor: '#007bff',
+    padding: 10,
     alignItems: 'center',
-    justifyContent: 'center',
+  },
+  addButtonText: {
+    color: 'white',
   },
 });
