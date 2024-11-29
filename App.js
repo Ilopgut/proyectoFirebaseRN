@@ -1,14 +1,45 @@
 import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, Text, View } from 'react-native';
-import { app, firebaseAnalytics } from './firebaseConfig'; // Asegúrate de usar la ruta correcta
+import { app, firebaseAnalytics } from './firebase/firebaseConfig'; // Asegúrate de usar la ruta correcta
 
+import { NavigationContainer } from '@react-navigation/native';
+import { createStackNavigator } from '@react-navigation/stack';
+
+// Import your screens
+import Login from './components/Login';
+import actividadesScreen from './components/actividadesScreen';
+
+// Create Stack Navigator
+const Stack = createStackNavigator();
 
 export default function App() {
   return (
-    <View style={styles.container}>
-      <Text>Open up App.js to start working on your app!</Text>
-      <StatusBar style="auto" />
-    </View>
+    <NavigationContainer>
+        <Stack.Navigator
+          initialRouteName="Login"
+          screenOptions={{
+            headerStyle: {
+              backgroundColor: '#f4f4f4',
+            },
+            headerTintColor: '#333',
+            headerTitleStyle: {
+              fontWeight: 'bold',
+            },
+          }}
+        >
+          <Stack.Screen
+            name="Login"
+            component={Login}
+            options={{ title: 'Iniciar Sesión',headerShown:false }}
+          />
+          <Stack.Screen
+            name="Actividades"
+            component={actividadesScreen}
+            options={{ title: 'Mis Actividades',headerShown:false  }}
+          />
+        </Stack.Navigator>
+        <StatusBar style="auto" />
+      </NavigationContainer>
   );
 }
 
