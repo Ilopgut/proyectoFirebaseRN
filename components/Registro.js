@@ -6,8 +6,7 @@ import { StatusBar } from 'expo-status-bar';
 
 import { FIREBASE_APP, FIREBASE_ANALYTICS, FIREBASE_AUTH,FIRESTORE_DB } from '../firebase/firebaseConfig'; // Asegúrate de usar la ruta correcta
 import { createUserWithEmailAndPassword,updateProfile  } from 'firebase/auth';
-
-import {doc,setDoc,serverTimestamp} from 'firebase/firestore';
+import {doc,setDoc,serverTimestamp,addDoc,collection} from 'firebase/firestore';
 // Validation schema using Yup
 const RegistroSchema = Yup.object().shape({
   usuario: Yup.string()
@@ -37,20 +36,11 @@ export default function Registro({ navigation }) {
           values.contraseña
         );
 
-        // Optional: Update profile with username
-        await updateProfile(userCredential.user, {
-          displayName: values.usuario
-        });
+        const usuarioCollection = {"nombre":values.usuario,"email":values.correo}
+        addDoc(collection(FIRESTORE_DB, 'usuarios'), usuarioCollection);
 
-        // Optional: Create user document in Firestore
-        await setDoc(doc(FIRESTORE_DB, 'users', userCredential.user.uid), {
-          username: values.usuario,
-          email: values.correo,
-          createdAt: serverTimestamp()
-        });
-
-        // Navigate to Actividades screen
         setRegistroError('');
+        // Navigate to Actividades screen
         navigation.navigate('Actividades');
   } catch (error) {
         // Detailed error handling

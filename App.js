@@ -35,7 +35,7 @@ export default function App() {
           <Stack.Screen
             name="Actividades"
             component={actividadesScreen}
-            options={{ title: 'Mis Actividades',headerShown:false  }}
+            options={{ title: 'Mis Actividades'}}
           />
           <Stack.Screen
             name="Registro"

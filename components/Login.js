@@ -1,6 +1,6 @@
 import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, Text, View,Button,TextInput,TouchableOpacity } from 'react-native';
-import { FIREBASE_APP, FIREBASE_ANALYTICS, FIREBASE_AUTH } from '../firebase/firebaseConfig'; // Asegúrate de usar la ruta correcta
+import { FIREBASE_APP, FIREBASE_ANALYTICS, FIREBASE_AUTH, FIRESTORE_DB } from '../firebase/firebaseConfig'; // Asegúrate de usar la ruta correcta
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { useState } from 'react';
 
