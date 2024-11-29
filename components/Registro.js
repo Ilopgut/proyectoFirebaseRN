@@ -1,15 +1,19 @@
-import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View,Button,TextInput,TouchableOpacity } from 'react-native';
-import { FIREBASE_APP, FIREBASE_ANALYTICS, FIREBASE_AUTH } from '../firebase/firebaseConfig'; // Asegúrate de usar la ruta correcta
-import { signInWithEmailAndPassword } from 'firebase/auth';
-import { useState } from 'react';
-
+import React, { useState } from 'react';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
 import { Formik } from 'formik';
 import * as Yup from 'yup';
+import { StatusBar } from 'expo-status-bar';
 
+import { FIREBASE_APP, FIREBASE_ANALYTICS, FIREBASE_AUTH,FIRESTORE_DB } from '../firebase/firebaseConfig'; // Asegúrate de usar la ruta correcta
+import { createUserWithEmailAndPassword,updateProfile  } from 'firebase/auth';
 
+import {doc,setDoc,serverTimestamp} from 'firebase/firestore';
 // Validation schema using Yup
-const LoginSchema = Yup.object().shape({
+const RegistroSchema = Yup.object().shape({
+  usuario: Yup.string()
+    .required('El nombre de usuario es obligatorio')
+    .min(3, 'El usuario debe tener al menos 3 caracteres')
+    .max(20, 'El usuario no puede tener más de 20 caracteres'),
   correo: Yup.string()
     .email('Correo electrónico inválido')
     .required('El correo es obligatorio'),
@@ -19,49 +23,62 @@ const LoginSchema = Yup.object().shape({
     .required('La contraseña es obligatoria')
 });
 
-export default function Login({ navigation }) {
-    const [LoginError,setLoginError] = useState('');
+export default function Registro({ navigation }) {
+    const [loading,setLoading] = useState();
+    const [RegistroError,setRegistroError] = useState('');
 
     const handleSubmit = async (values) => {
-    try {
-      // Use the email from the form for authentication
-      await signInWithEmailAndPassword(FIREBASE_AUTH, values.correo, values.contraseña);
-      navigation.navigate('Actividades');
-    } catch (error) {
-      // Handle different types of authentication errors
-      let errorMessage = 'Error de inicio de sesión: ';
+      setLoading(true);
+      try {
+        // Create user with email and password
+        const userCredential = await createUserWithEmailAndPassword(
+          FIREBASE_AUTH,
+          values.correo,
+          values.contraseña
+        );
 
-      switch (error.code) {
-        case 'auth/invalid-email':
-          errorMessage += 'Correo electrónico inválido';
-          break;
-        case 'auth/user-disabled':
-          errorMessage += 'Usuario deshabilitado';
-          break;
-        case 'auth/user-not-found':
-          errorMessage += 'Usuario no encontrado';
-          break;
-        case 'auth/wrong-password':
-          errorMessage += 'Contraseña incorrecta';
-          break;
-        case 'auth/invalid-credential':
-          errorMessage += 'Correo o contraseña incorrectos.';
-          break;
-        default:
-          errorMessage = error.message;
+        // Optional: Update profile with username
+        await updateProfile(userCredential.user, {
+          displayName: values.usuario
+        });
+
+        // Optional: Create user document in Firestore
+        await setDoc(doc(FIRESTORE_DB, 'users', userCredential.user.uid), {
+          username: values.usuario,
+          email: values.correo,
+          createdAt: serverTimestamp()
+        });
+
+        // Navigate to Actividades screen
+        setRegistroError('');
+        navigation.navigate('Actividades');
+  } catch (error) {
+        // Detailed error handling
+        let errorMessage = 'Error al crear cuenta: ';
+
+        switch (error.code) {
+          case 'auth/email-already-in-use':
+            errorMessage += 'El correo electrónico ya está registrado';
+            break;
+          default:
+            errorMessage = error.message;
+        }
+
+        // Set the error message in state
+        setRegistroError(errorMessage);
+
+        // Log the full error for debugging
+        console.error('Registration Error:', error);
+      } finally {
+        setLoading(false);
       }
-
-      setLoginError(errorMessage);
-
-    } finally {
-    }
-  };
+    };
 
   return (
     <View style={styles.container}>
       <Formik
-        initialValues={{ correo: '', contraseña: '' }}
-        validationSchema={LoginSchema}
+        initialValues={{ usuario: '', correo: '', contraseña: '' }}
+        validationSchema={RegistroSchema}
         onSubmit={handleSubmit}
       >
         {({
@@ -73,7 +90,22 @@ export default function Login({ navigation }) {
           touched
         }) => (
           <View style={styles.formContainer}>
-            <Text style={styles.title}>Iniciar Sesión</Text>
+            <Text style={styles.title}>Crear Cuenta</Text>
+
+            {/* Campo de Usuario */}
+            <TextInput
+              style={[
+                styles.input,
+                (errors.usuario && touched.usuario) && styles.inputError
+              ]}
+              placeholder="Nombre de Usuario"
+              onChangeText={handleChange('usuario')}
+              onBlur={handleBlur('usuario')}
+              value={values.usuario}
+            />
+            {errors.usuario && touched.usuario && (
+              <Text style={styles.errorText}>{errors.usuario}</Text>
+            )}
 
             {/* Campo de Correo */}
             <TextInput
@@ -107,22 +139,24 @@ export default function Login({ navigation }) {
               <Text style={styles.errorText}>{errors.contraseña}</Text>
             )}
 
-            {/* Botón de Envío */}
+            {/* Botón de Registro */}
             <TouchableOpacity
-              style={styles.submitButton}
+              style={[
+                styles.submitButton,
+              ]}
               onPress={handleSubmit}
             >
-              <Text style={styles.submitButtonText}>Iniciar sesion</Text>
+              <Text style={styles.submitButtonText}>Registrarse</Text>
             </TouchableOpacity>
-            <Text style={styles.errorText}>{LoginError}</Text>
 
-            {/* Nuevo botón de Registro */}
+            <Text style={styles.errorText}>{RegistroError}</Text>
+            {/* Botón de Ir a Login */}
             <TouchableOpacity
               style={styles.registerButton}
-              onPress={() => navigation.navigate('Registro')}
+              onPress={() => navigation.navigate('Login')}
             >
               <Text style={styles.registerButtonText}>
-                ¿No tienes cuenta? Regístrate
+                ¿Ya tienes cuenta? Inicia Sesión
               </Text>
             </TouchableOpacity>
           </View>
@@ -174,12 +208,14 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     alignItems: 'center',
   },
+  submitButtonDisabled: {
+    backgroundColor: '#a0a0a0',
+  },
   submitButtonText: {
     color: 'white',
     fontWeight: 'bold',
     fontSize: 16,
   },
-
   registerButton: {
     marginTop: 15,
     padding: 15,
